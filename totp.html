@@ -30,12 +30,29 @@
 var secretKey = "";  // e.g. change "" to "abcdefghijklmmop"
 
 function onload() {
-  if (secretKey != "") {
+  var search = parseURLSearch(window.location.search);
+  var secret = search["secret"];
+  if (secret) {
+    document.getElementById('secret').value = secret;
+  } else if (secretKey != "") {
     var keyrow = document.getElementById('secretkey');
     keyrow.style.display = "none";
   }
+  var plainURL = window.location.origin + '/' +  window.location.pathname;
+  document.getElementById("url").innerHTML = plainURL;
   document.getElementById("secret").select();
   setInterval(refresh, 100)
+}
+
+// From http://www.abeautifulsite.net/parsing-urls-in-javascript/
+function parseURLSearch(search) {
+  var queries = search.replace(/^\?/, '').split('&');
+  var searchObject = {};
+  for(var i=0; i<queries.length; i++) {
+    var split = queries[i].split('=');
+    searchObject[split[0]] = split[1];
+  }
+  return searchObject;
 }
 
 // Given a secret key "K" and a timestamp "t" (in 30s units since the
@@ -162,6 +179,11 @@ function refresh() {
     computer, and set the value of the "secretKey" variable near the
     top of the file. If you do so, that key will be used, and the input
     line above for the Secret Key will be hidden.</p>
+
+  <p>Another way to remember the secret is to encode it in a bookmark
+    to this page. For example, <a href='totp.html?secret=UseThisAsASecret'>
+    <span id='url'>totp.html</span>?secret=UseThisAsASecret</a> (but
+    use your secret instead of "UseThisAsASecret").</p>
 
   <p>This page requires JavaScript, but it executes completely inside
     the web browser on your computer. No communication is done over the
