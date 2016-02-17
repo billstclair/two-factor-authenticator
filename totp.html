@@ -38,7 +38,12 @@ function onload() {
     var keyrow = document.getElementById('secretkey');
     keyrow.style.display = "none";
   }
-  var plainURL = window.location.origin + '/' +  window.location.pathname;
+  var origin = window.location.origin;
+  if (origin == 'null') {
+    // Firefox fix
+    origin = "file://";
+  }
+  var plainURL = origin + window.location.pathname;
   document.getElementById("url").innerHTML = plainURL;
   document.getElementById("secret").select();
   setInterval(refresh, 100)
