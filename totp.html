@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<!-- TOTP Debugger
+  --
+  -- Copyright 2011 Google Inc.
+  -- Author: Markus Gutschke
+  --
+  -- Simplified by: Bill St. Clair <billstclair@gmail.com>
+  --
+  -- Licensed under the Apache License, Version 2.0 (the "License");
+  -- you may not use this file except in compliance with the License.
+  -- You may obtain a copy of the License at
+  --
+  --      http://www.apache.org/licenses/LICENSE-2.0
+  --
+  -- Unless required by applicable law or agreed to in writing, software
+  -- distributed under the License is distributed on an "AS IS" BASIS,
+  -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  -- See the License for the specific language governing permissions and
+  -- limitations under the License.
+-->
+<head>
+  <title>Two-Factor Authenticator</title>
+  <script> <!--
+
+// If this variable has a value, it will be used as the secret key
+// It should 16 characters long, consisting of the letters "a" to "z"
+// and the digits "2" to "7".
+// **** CHANGE THIS TO EMBED THE SECRET KEY IN THE FILE ****
+var secretKey = "";  // e.g. change "" to "abcdefghijklmmop"
+
+// Given a secret key "K" and a timestamp "t" (in 30s units since the
+// beginning of the epoch), return a TOTP code.
+function totp(K,t) {
+  function sha1(C){
+    function L(x,b){return x<<b|x>>>32-b;}
+    var l=C.length,D=C.concat([1<<31]),V=0x67452301,W=0x88888888,
+        Y=271733878,X=Y^W,Z=0xC3D2E1F0;W^=V;
+    do D.push(0);while(D.length+1&15);D.push(32*l);
+    while (D.length){
+      var E=D.splice(0,16),a=V,b=W,c=X,d=Y,e=Z,f,k,i=12;
+      function I(x){var t=L(a,5)+f+e+k+E[x];e=d;d=c;c=L(b,30);b=a;a=t;}
+      for(;++i<77;)E.push(L(E[i]^E[i-5]^E[i-11]^E[i-13],1));
+      k=0x5A827999;for(i=0;i<20;I(i++))f=b&c|~b&d;
+      k=0x6ED9EBA1;for(;i<40;I(i++))f=b^c^d;
+      k=0x8F1BBCDC;for(;i<60;I(i++))f=b&c|b&d|c&d;
+      k=0xCA62C1D6;for(;i<80;I(i++))f=b^c^d;
+      V+=a;W+=b;X+=c;Y+=d;Z+=e;}
+    return[V,W,X,Y,Z];
+  }
+  var k=[],l=[],i=0,j=0,c=0;
+  for (;i<K.length;){
+    c=c*32+'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.
+      indexOf(K.charAt(i++).toUpperCase());
+    if((j+=5)>31)k.push(Math.floor(c/(1<<(j-=32)))),c&=31;}
+  j&&k.push(c<<(32-j));
+  for(i=0;i<16;++i)l.push(0x6A6A6A6A^(k[i]=k[i]^0x5C5C5C5C));
+  var s=sha1(k.concat(sha1(l.concat([0,t])))),o=s[4]&0xF;
+  return ((s[o>>2]<<8*(o&3)|(o&3?s[(o>>2)+1]>>>8*(4-o&3):0))&-1>>>1)%1000000;
+}
+
+function onload() {
+  if (secretKey != "") {
+    var keyrow = document.getElementById('secretkey');
+    keyrow.style.display = "none";
+  }
+  document.getElementById("secret").select();
+  setInterval(refresh, 100)
+}
+
+// Periodically check whether we need to update the UI. It would be a little
+// more efficient to only call this function as a direct result of
+// significant state changes. But polling is cheap, and keeps the code a
+// little easier.
+var lastsecret,lastepochseconds;
+var lasttimestamp;
+function refresh() {
+  // Compute current TOTP code
+  var k = secretKey;
+  if (k == '') {
+    k=document.getElementById('secret').value;
+  }
+  k = k.replace(/[^ABCDEFGHIJKLMNOPQRSTUVWXYZ234567]/gi, '');
+  e=Math.floor(new Date().getTime()/1000);
+  var t=Math.floor(e/30);
+  var rem = 30 - (e - (t*30));
+
+  // If TOTP code has changed (either because of user edits, or
+  // because of elapsed time), update the user interface.
+  if (k != lastsecret || e != lastepochseconds ||
+      t != lasttimestamp) {
+    lastsecret=k;
+    lastepochseconds=e;
+    lasttimestamp=t;
+
+    var code=totp(k,t);
+
+    // Show the current time in seconds and in 30s increments since midnight
+    // Jan 1st, 1970. Optionally, let the user override this timestamp.
+    document.getElementById('epoch').innerHTML=rem;
+
+    // Show the current TOTP code.
+    document.getElementById('totp').innerHTML=code;
+  }
+}
+
+  --></script>
+</head>
+<body style="font-family: sans-serif; width: 40em; margin: auto; margin-top: 5em; margin-bottom: 5em; padding: 2em; border: solid;" onload="onload()">
+  <h2 style='text-align: center;'>Two-Factor Authenticator</h2>
+  <center>
+  <table style='border: 2px solid blue; padding: 2px;'>
+    <tr id='secretkey'><td>Secret&nbsp;Key (<a href='https://en.wikipedia.org/wiki/Base32'>BASE32</a>):</td>
+        <td><input size="20" type="text" id="secret" value="InTheQRCodeBelow" /></td>
+    </tr>
+    <tr>
+      <td>Time remaining:&nbsp;</td>
+      <td align="right"><span id="epoch"></span></td>
+    </tr>
+    <tr>
+      <td>TOTP (password):&nbsp;</td>
+      <td align="right">
+        <span id="totp" style='font-weight: bold;'></span>
+      </td>
+    </tr>
+  </table>
+  </center>
+
+  <p>This page generates a Time-based One-Time Password (TOTP), as
+    done by the Google Authenticator app, but in your web browser. The
+    password changes every 30 seconds, hence the count-down in the
+    "Time Remaining" field.</p>
+
+  <p>Though it will work if loaded directly from the internet, it is
+    best to "File/Save Page As..." in your browser, and use it
+    directly from the saved file there, via "File/Open..." in your
+    browser. You can also right-click, if you want, on the QR code in
+    the paragraph below and "Save Image As...", but that isn't
+    necessary to make your saved version work, only to make it
+    pretty.</p>
+
+  <p>The "Secret Key" is generated by a web site that requires
+    two-factor authentication. It should be 16 characters long,
+    <img src='qr-code-100x100.png' style='float: right; border: 2px solid blue;' alt='QR Code' width='100' height='100'/>
+    consisting of the letters "a" to "z" and the digits "2" to "7",
+    which represents a 512-bit number (this page doesn't enforce that;
+    it simply decodes the string as BASE32, generating however big a
+    number it represents). The key, and an associated label, are often
+    presented visually as a QR code, which Authenticator apps can
+    scan, but there is usually a way to display it as text.</p>
+
+  <p>Paste that secret key into the field near the top of the screen
+  labelled "Secret Key", where it initially says "InTheQRCodeBelow"
+  (and which is actually encoded in the QR code image).
+
+  <p>If you forget a site's secret key, you won't be able to login any
+    more, until you convince an administrator there to let you create
+    a new one. Google Authenticator remembers it for you, but if you
+    use this web page, you'll have to remember it yourself.</p>
+
+  <p>One way to remember a secret key is to edit this file on your
+    computer, and set the value of the "secretKey" variable near the
+    top of the file. If you do so, that key will be used, and the input
+    line above for the Secret Key will be hidden.</p>
+
+  <p>This page requires JavaScript, but it executes completely inside
+    the web browser on your computer. No communication is done over the
+    network to compute the TOTP from the Secret Key.</p>
+
+  <p>This page will work correctly only if your computer's clock is
+  synchronized with the actual time. Since the algorithm is
+  time-based, unless your clock has the same time, to the second, as
+  the clock on the computer requiring the password, it won't
+  work. Most modern computers do time synchronization automatically.</p>
+
+  <p>Distilled from Markus Gutschke's
+    <a href='https://github.com/google/google-authenticator/blob/master/libpam/totp.html'>
+      TOTP Debugger</a>, which is live
+    <a href='https://billstclair.com/two-factor-authenticator/totp-full.html'>here</a>.</p>
+
+  <p><a href='https://billstclair.com/'>Bill St. Clair</a>, 16 February 2016</p>
+</body>
+</html>
