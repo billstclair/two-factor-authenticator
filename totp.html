@@ -30,12 +30,13 @@
 var secretKey = "";  // e.g. change "" to "abcdefghijklmmop"
 
 function onload() {
+  passCount();                  // initialize, if zero
   var search = parseURLSearch(window.location.search);
   var secret = search["secret"];
   if (secret) {
     document.getElementById('secret').value = secret;
   } else if (secretKey != "") {
-    var keyrow = document.getElementById('secretkey');
+    var keyrow = document.getElementById('secret-row');
     keyrow.style.display = "none";
   }
   var origin = window.location.origin;
@@ -126,24 +127,93 @@ function refresh() {
   }
 }
 
+function isNumber(x) {
+  var num = Number(x);
+  return !isNaN(num);
+}
+
+function toNumber(x) {
+  var num = Number(x);
+  return isNaN(num) ? 0 : num;
+}
+
+function tv(name) {
+  return "totp_" + name;
+}
+
+function vi(name, i) {
+  return name + "[" + i + "]";
+}
+
+function put(key, value) {
+  localStorage[tv(key)] = value;
+  return value;
+}
+
+function get(key) {
+  return localStorage[tv(key)];
+}
+
+function name(idx, newval) {
+  var v = vi("name", idx);
+  if (newval === undefined) {
+    return get(v);
+  } else {
+    put(v, newval);
+    return newval;
+  }
+}
+
+function val(idx, newval) {
+  var v = vi("value", idx);
+  if (newval === undefined) {
+    return get(v);
+  } else {
+    put(v, newval);
+    return newval;
+  }
+}
+
+function passCount(newval) {
+  var v = "passCount";
+  if (newval === undefined) {
+    var count = toNumber(get(v));
+    if (count == 0) {
+      name(0, "Password");
+      val(0, "InTheQRCodeBelow");
+      put("passCount", ++count)
+    }
+    return count;
+  } else {
+    return put(v, toNumber(newval))
+  }
+}
+
   --></script>
 </head>
 <body style="font-family: sans-serif; width: 40em; margin: auto; margin-top: 5em; margin-bottom: 5em; padding: 2em; border: solid;" onload="onload()">
   <h2 style='text-align: center;'>Two-Factor Authenticator</h2>
   <center>
   <table style='border: 2px solid blue; padding: 2px;'>
-    <tr id='secretkey'><td>Secret&nbsp;Key (<a href='https://en.wikipedia.org/wiki/Base32'>BASE32</a>):</td>
-        <td><input size="20" type="text" id="secret" value="InTheQRCodeBelow" /></td>
+    <tr id='secret-row'>
+      <td>Secret&nbsp;Key (<a href='https://en.wikipedia.org/wiki/Base32'>BASE32</a>):</td>
+      <td><input size="20" type="text" id="secret" value="InTheQRCodeBelow" /></td>
+    </tr>
+    <tr id='name-row'>
+      <td>Name:</td>
+      <td><input size="20" type="text" id="name" value="Password" /></td>
+      <td><input type='checkbox' id='show-secret' checked='checked' /></td>
     </tr>
     <tr>
       <td>Time remaining:&nbsp;</td>
       <td align="right"><span id="epoch"></span></td>
     </tr>
     <tr>
-      <td>TOTP (password):&nbsp;</td>
+      <td><span id='totp-label'>Password</span>:&nbsp;</td>
       <td align="right">
         <span id="totp" style='font-weight: bold;'></span>
       </td>
+      <td><input type='radio' name='edit' id='select' checked='checked' /></td>
     </tr>
   </table>
   </center>
