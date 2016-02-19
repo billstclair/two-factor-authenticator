@@ -29,14 +29,18 @@
 // **** CHANGE THIS TO EMBED THE SECRET KEY IN THE FILE ****
 var secretKey = "";  // e.g. change "" to "abcdefghijklmmop"
 
+function eid(id) {
+  return document.getElementById(id);
+}
+
 function onload() {
   passCount();                  // initialize, if zero
   var search = parseURLSearch(window.location.search);
   var secret = search["secret"];
   if (secret) {
-    document.getElementById('secret').value = secret;
+    eid('secret').value = secret;
   } else if (secretKey != "") {
-    var keyrow = document.getElementById('secret-row');
+    var keyrow = eid('secret-row');
     keyrow.style.display = "none";
   }
   var origin = window.location.origin;
@@ -45,8 +49,8 @@ function onload() {
     origin = "file://";
   }
   var plainURL = origin + window.location.pathname;
-  document.getElementById("url").innerHTML = plainURL;
-  document.getElementById("secret").select();
+  eid("url").innerHTML = plainURL;
+  eid("secret").select();
   setInterval(refresh, 100)
 }
 
@@ -101,7 +105,7 @@ function refresh() {
   // Compute current TOTP code
   var k = secretKey;
   if (k == '') {
-    k=document.getElementById('secret').value;
+    k=eid('secret').value;
   }
   k = k.replace(/[^ABCDEFGHIJKLMNOPQRSTUVWXYZ234567]/gi, '');
   e=Math.floor(new Date().getTime()/1000);
@@ -120,10 +124,54 @@ function refresh() {
 
     // Show the current time in seconds and in 30s increments since midnight
     // Jan 1st, 1970. Optionally, let the user override this timestamp.
-    document.getElementById('epoch').innerHTML=rem;
+    eid('epoch').innerHTML=rem;
 
     // Show the current TOTP code.
-    document.getElementById('totp').innerHTML=code;
+    eid('totp').innerHTML=code;
+  }
+}
+
+function selectedPasswordRadio() {
+  var form = eid('form');
+  var elements = form.elements;
+  var cnt = elements.length;
+  for (var i=0; i<cnt; i++) {
+    var el = elements[i];
+    if (el.type == 'radio' && el.checked) {
+      return el;
+    }
+  }
+}
+
+function showHideEditing(show) {
+  var display = show ? "" : "none";
+  eid('help').style.display = display;
+  eid('secret-row').style.display = display;
+  eid('name-row').style.display = display;
+}
+
+function updateShowSecret() {
+  var showSecret = eid('show-secret').checked;
+
+  showHideEditing(showSecret);
+
+  var radio = selectedPasswordRadio();
+  if (radio) {
+    if (!showSecret) {
+      radio.checked = false;
+    }
+  } else {
+    if (showSecret) {
+      eid('passwords0').checked = true;
+    }
+  }
+}
+
+function updateSelectedPassword() {
+  var radio = selectedPasswordRadio();
+  if (radio) {
+    showHideEditing(true);
+    eid("show-secret").checked = true;
   }
 }
 
@@ -150,28 +198,28 @@ function put(key, value) {
   return value;
 }
 
-function get(key) {
-  return localStorage[tv(key)];
+function get(key, value) {
+  if (value === undefined) {
+    return localStorage[tv(key)];
+  } else {
+    return put(key, value);
+  }
 }
 
 function name(idx, newval) {
-  var v = vi("name", idx);
-  if (newval === undefined) {
-    return get(v);
-  } else {
-    put(v, newval);
-    return newval;
-  }
+  return get(vi("name", idx), newval);
 }
 
 function val(idx, newval) {
-  var v = vi("value", idx);
-  if (newval === undefined) {
-    return get(v);
-  } else {
-    put(v, newval);
-    return newval;
-  }
+  return get(vi("value", idx), newval);
+}
+
+function showEditor(newval) {
+  return get("showEditor", newval);
+}
+
+function editIndex(newval) {
+  return toNumber(get("editIndex", newval));
 }
 
 function passCount(newval) {
@@ -181,6 +229,8 @@ function passCount(newval) {
     if (count == 0) {
       name(0, "Password");
       val(0, "InTheQRCodeBelow");
+      showEditor(true);
+      editIndex(0);
       put("passCount", ++count)
     }
     return count;
@@ -194,30 +244,43 @@ function passCount(newval) {
 <body style="font-family: sans-serif; width: 40em; margin: auto; margin-top: 5em; margin-bottom: 5em; padding: 2em; border: solid;" onload="onload()">
   <h2 style='text-align: center;'>Two-Factor Authenticator</h2>
   <center>
-  <table style='border: 2px solid blue; padding: 2px;'>
-    <tr id='secret-row'>
-      <td>Secret&nbsp;Key (<a href='https://en.wikipedia.org/wiki/Base32'>BASE32</a>):</td>
-      <td><input size="20" type="text" id="secret" value="InTheQRCodeBelow" /></td>
-    </tr>
-    <tr id='name-row'>
-      <td>Name:</td>
-      <td><input size="20" type="text" id="name" value="Password" /></td>
-      <td><input type='checkbox' id='show-secret' checked='checked' /></td>
-    </tr>
-    <tr>
-      <td>Time remaining:&nbsp;</td>
-      <td align="right"><span id="epoch"></span></td>
-    </tr>
-    <tr>
-      <td><span id='totp-label'>Password</span>:&nbsp;</td>
-      <td align="right">
-        <span id="totp" style='font-weight: bold;'></span>
-      </td>
-      <td><input type='radio' name='edit' id='select' checked='checked' /></td>
-    </tr>
-  </table>
+    <form id='form'>
+      <table style='border: 2px solid blue; padding: 2px;'>
+        <tr id='secret-row'>
+          <td>Secret&nbsp;Key (<a href='https://en.wikipedia.org/wiki/Base32'>BASE32</a>):</td>
+          <td><input size="20" type="text" id="secret" value="InTheQRCodeBelow" /></td>
+        </tr>
+        <tr id='name-row'>
+          <td>Name:</td>
+          <td><input size="20" type="text" id="name" value="Password" /></td>
+          <td><input type='checkbox' id='show-secret' checked='checked'
+                     onChange='updateShowSecret()' /></td>
+        </tr>
+        <tr>
+          <td>Time remaining:&nbsp;</td>
+          <td align="right"><span id="epoch"></span></td>
+        </tr>
+        <tr>
+          <td><span id='totp-label'>Password</span>:&nbsp;</td>
+          <td align="right">
+            <span id="totp" style='font-weight: bold;'></span>
+          </td>
+          <td><input type='radio' id='passwords0' name='passwords' value='0'
+                     onChange='updateSelectedPassword()' checked='checked' /></td>
+        </tr>
+        <tr>
+          <td><span id='totp-label1'>Foo</span>:&nbsp;</td>
+          <td align="right">
+            <span id="totp1" style='font-weight: bold;'></span>
+          </td>
+          <td><input type='radio' name='passwords' value='1'
+                     onChange='updateSelectedPassword()' /></td>
+        </tr>
+      </table>
+    </form>
   </center>
 
+ <div id='help'>
   <p>This page generates a Time-based One-Time Password (TOTP), as
     done by the Google Authenticator app, but in your web browser. The
     password changes every 30 seconds, hence the count-down in the
@@ -278,5 +341,6 @@ function passCount(newval) {
 
   <p><a href='https://billstclair.com/'>Bill St. Clair</a>, 16 February 2016,
     <a href='https://github.com/billstclair/two-factor-authenticator'>on GitHub</a></p>
+ </div>
 </body>
 </html>
