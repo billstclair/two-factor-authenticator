@@ -21,6 +21,13 @@
 -->
 <head>
   <title>Two-Factor Authenticator</title>
+  <style media="screen" type="text/css">
+    table td.shrink {
+      text-align: right;
+      white-space:nowrap;
+      width: 3em;
+    }
+  </style>
   <script> <!--
 
 // If this variable has a value, it will be used as the secret key
@@ -52,6 +59,10 @@ function onload() {
   eid("url").innerHTML = plainURL;
   eid("secret").select();
   setInterval(refresh, 100)
+}
+
+function onFocus(element) {
+  element.select();
 }
 
 // From http://www.abeautifulsite.net/parsing-urls-in-javascript/
@@ -127,7 +138,12 @@ function refresh() {
     eid('epoch').innerHTML=rem;
 
     // Show the current TOTP code.
-    eid('totp').innerHTML=code;
+    code = "" + code;
+    for (var i=0; i<6-code.length; i++) {
+      code = "0" + code;
+    }
+    code = code.substring(0, 3) + " " + code.substring(3, 6);
+    eid('totp').innerHTML = code;
   }
 }
 
@@ -241,38 +257,47 @@ function passCount(newval) {
 
   --></script>
 </head>
-<body style="font-family: sans-serif; width: 40em; margin: auto; margin-top: 5em; margin-bottom: 5em; padding: 2em; border: solid;" onload="onload()">
+<body style="font-family: sans-serif; width: 40em; margin: auto; margin-top: 5em; margin-bottom: 5em; padding: 2em; border: solid gray;" onload="onload()">
   <h2 style='text-align: center;'>Two-Factor Authenticator</h2>
   <center>
     <form id='form'>
-      <table style='border: 2px solid blue; padding: 2px;'>
+      <table style='border: 2px solid gray; padding: 2px;'>
         <tr id='secret-row'>
-          <td>Secret&nbsp;Key (<a href='https://en.wikipedia.org/wiki/Base32'>BASE32</a>):</td>
-          <td><input size="20" type="text" id="secret" value="InTheQRCodeBelow" /></td>
+          <td style='text-align: right;'>Secret&nbsp;Key (<a href='https://en.wikipedia.org/wiki/Base32'>BASE32</a>):</td>
+          <td colspan='2'><input size="20" type="text" id="secret" value="InTheQRCodeBelow"
+                     onfocus='onFocus(this)' /></td>
         </tr>
         <tr id='name-row'>
-          <td>Name:</td>
-          <td><input size="20" type="text" id="name" value="Password" /></td>
+          <td style='text-align: right;'>Name:</td>
+          <td colspan='2'><input size="20" type="text" id="name" value="Password"
+                     onfocus='onFocus(this)' /></td>
           <td><input type='checkbox' id='show-secret' checked='checked'
                      onChange='updateShowSecret()' /></td>
         </tr>
         <tr>
-          <td>Time remaining:&nbsp;</td>
-          <td align="right"><span id="epoch"></span></td>
+          <td style='text-align: right;'>Time remaining:&nbsp;</td>
+          <td class='shrink'><span id="epoch"></span></td>
+          <td>&nbsp;</td>
         </tr>
         <tr>
-          <td><span id='totp-label'>Password</span>:&nbsp;</td>
-          <td align="right">
+          <td style='text-align: right;>
+            <span id='totp-label'>Password</span>:&nbsp;
+          </td>
+          <td class='shrink'>
             <span id="totp" style='font-weight: bold;'></span>
           </td>
+          <td>&nbsp;</td>
           <td><input type='radio' id='passwords0' name='passwords' value='0'
                      onChange='updateSelectedPassword()' checked='checked' /></td>
         </tr>
         <tr>
-          <td><span id='totp-label1'>Foo</span>:&nbsp;</td>
-          <td align="right">
+          <td style='text-align: right;>
+            <span id='totp-label1'>Foo</span>:&nbsp;
+          </td>
+          <td class='shrink'>
             <span id="totp1" style='font-weight: bold;'></span>
           </td>
+          <td>&nbsp;</td>
           <td><input type='radio' name='passwords' value='1'
                      onChange='updateSelectedPassword()' /></td>
         </tr>
