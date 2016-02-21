@@ -5,7 +5,8 @@
   -- Copyright 2011 Google Inc.
   -- Author: Markus Gutschke
   --
-  -- Simplified by: Bill St. Clair <billstclair@gmail.com>
+  -- Converted from developer to consumer tool by:
+  -- Bill St. Clair <billstclair@gmail.com>
   --
   -- Licensed under the Apache License, Version 2.0 (the "License");
   -- you may not use this file except in compliance with the License.
@@ -41,15 +42,7 @@ function eid(id) {
 }
 
 function onload() {
-  passCount();                  // initialize, if zero
-  var search = parseURLSearch(window.location.search);
-  var secret = search["secret"];
-  if (secret) {
-    eid('secret').value = secret;
-  } else if (secretKey != "") {
-    var keyrow = eid('secret-row');
-    keyrow.style.display = "none";
-  }
+  initializeKeys();
   var origin = window.location.origin;
   if (origin == 'null') {
     // Firefox fix
@@ -61,19 +54,84 @@ function onload() {
   setInterval(refresh, 100)
 }
 
-function onFocus(element) {
-  element.select();
+function initializeKeys() {
+  var count = passCount();
+  // To do: maintain an index of the currently edited password row.
+  eid('secret').innerHTML = val(0);
+  eid('name').innerHTML = name(0);
+  for (var i=0; i<count; i++) {
+    getRow(i);
+    var id = vi('name', i);
+    var label = eid(id);
+    label.innerHTML = name(i);
+  }
 }
 
-// From http://www.abeautifulsite.net/parsing-urls-in-javascript/
-function parseURLSearch(search) {
-  var queries = search.replace(/^\?/, '').split('&');
-  var searchObject = {};
-  for(var i=0; i<queries.length; i++) {
-    var split = queries[i].split('=');
-    searchObject[split[0]] = split[1];
+var base32Letters = "abcdefghijklmnopqrstuvwxyz234567";
+
+function randomBase32Letter() {
+  var int = Math.floor(32 * Math.random());
+  return base32Letters.substring(int, int+1);
+}
+
+function randomPassword() {
+  var pass = "";
+  for (var i=0; i<16; i++) {
+    pass = pass + randomBase32Letter();
   }
-  return searchObject;
+}
+
+var firstRowIndex = -1;
+
+function getRow(rowIndex) {
+  var table = eid('table');
+  var rows = table.rows;
+  var cnt = rows.length;
+  var row;
+
+  if (firstRowIndex < 0) {
+    for (var i=0; i<cnt; i++) {
+      row = rows[i];
+      if (row.id == "first-password-row") {
+        firstRowIndex = i;
+        break;
+      }
+    }
+ 
+    var startIndex = firstRowIndex;
+    var idx = startIndex;
+    var passwordCnt = cnt - startIndex;
+    if (rowIndex < passwordCnt) {
+      return rows[idx];
+    }
+    for (var i=passwordCnt; i<=rowIndex; i++) {
+      row = table.insertRow(idx);
+      var labelCell = row.insertCell(0);
+      labelCell.style = 'text-align: right;'
+      var id = vi('name', i);
+      name(i, id)
+      labelCell.innerHtml = "<span id='" + id + "'>" + id + "</span>:&nbsp;";
+      var passCell = row.insertCell(1);
+      passCell.class = 'shrink';
+      id = vi('password', i);
+      val = randomPassword();
+      val(i, val);
+      passCell.innerHTML = "<span id='" + id +
+        "' style='font-weight: bold;'>" + val + "</span>"
+      var nbspCell = row.insertCell(2);
+      nbspCell.innertHTML = "&nbsp;";
+      var radioCell = row.insertCell(3);
+      id = vi('radion', i);
+      radioCell.innerHTML = "<input type='radio' id='" + id +
+        "' name='passwords' value='0'" +
+        "onChange='updateSelectedPassword()' />";
+    }
+    return row;
+  }
+}  
+
+function onFocus(element) {
+  element.select();
 }
 
 // Given a secret key "K" and a timestamp "t" (in 30s units since the
@@ -143,7 +201,7 @@ function refresh() {
       code = "0" + code;
     }
     code = code.substring(0, 3) + " " + code.substring(3, 6);
-    eid('totp').innerHTML = code;
+    eid('password[0]').innerHTML = code;
   }
 }
 
@@ -178,7 +236,7 @@ function updateShowSecret() {
     }
   } else {
     if (showSecret) {
-      eid('passwords0').checked = true;
+      eid('radio[0]').checked = true;
     }
   }
 }
@@ -261,7 +319,7 @@ function passCount(newval) {
   <h2 style='text-align: center;'>Two-Factor Authenticator</h2>
   <center>
     <form id='form'>
-      <table style='border: 2px solid gray; padding: 2px;'>
+      <table id='table' style='border: 2px solid gray; padding: 2px;'>
         <tr id='secret-row'>
           <td style='text-align: right;'>Secret&nbsp;Key (<a href='https://en.wikipedia.org/wiki/Base32'>BASE32</a>):</td>
           <td colspan='2'><input size="20" type="text" id="secret" value="InTheQRCodeBelow"
@@ -279,27 +337,16 @@ function passCount(newval) {
           <td class='shrink'><span id="epoch"></span></td>
           <td>&nbsp;</td>
         </tr>
-        <tr>
-          <td style='text-align: right;>
-            <span id='totp-label'>Password</span>:&nbsp;
+        <tr id='first-password-row'>
+          <td style='text-align: right;'>
+            <span id='name[0]'>Password</span>:&nbsp;
           </td>
           <td class='shrink'>
-            <span id="totp" style='font-weight: bold;'></span>
+            <span id="password[0]" style='font-weight: bold;'></span>
           </td>
           <td>&nbsp;</td>
-          <td><input type='radio' id='passwords0' name='passwords' value='0'
+          <td><input type='radio' id='radio[0]' name='passwords' value='0'
                      onChange='updateSelectedPassword()' checked='checked' /></td>
-        </tr>
-        <tr>
-          <td style='text-align: right;>
-            <span id='totp-label1'>Foo</span>:&nbsp;
-          </td>
-          <td class='shrink'>
-            <span id="totp1" style='font-weight: bold;'></span>
-          </td>
-          <td>&nbsp;</td>
-          <td><input type='radio' name='passwords' value='1'
-                     onChange='updateSelectedPassword()' /></td>
         </tr>
       </table>
     </form>
