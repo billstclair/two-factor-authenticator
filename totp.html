@@ -206,18 +206,17 @@ function refresh() {
     lastname = newName;
   }
 
-  e=Math.floor(new Date().getTime()/1000);
+  var e = Math.floor(new Date().getTime()/1000);
+  var t = Math.floor(e/30);
 
   // If TOTP code has changed (either because of user edits, or
   // because of elapsed time), update the user interface.
-  if (secret != lastsecret || e != lastepochseconds ||
-      t != lasttimestamp) {
+  if (secret != lastsecret || e != lastepochseconds || t != lasttimestamp) {
     lastsecret=secret;
     lastepochseconds=e;
     lasttimestamp=t;
 
     k = secret.replace(/[^ABCDEFGHIJKLMNOPQRSTUVWXYZ234567]/gi, '');
-    var t=Math.floor(e/30);
     var rem = 30 - (e - (t*30));
 
     var code=totp(k,t);
