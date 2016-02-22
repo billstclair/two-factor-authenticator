@@ -58,14 +58,16 @@ function initializeKeys() {
     label.innerHTML = name(i);
   }
 
+  var rowidx = editingRow();
+  eid('secret').value = val(rowidx);
+  eid('name').value = name(rowidx);
+
   var show = showEditor();
   showHideEditing(show);
+
   if (show) {
-    var rowidx = editingRow();
     var id = vi('radio', rowidx);
     eid(id).checked = true;
-    eid('secret').value = val(rowidx);
-    eid('name').value = name(rowidx);
   } else {
     var radio = selectedPasswordRadio();
     if (radio) {
@@ -182,24 +184,19 @@ var firstRefresh = true;
 
 function refresh() {
   // Compute current TOTP code
-  var k = eid('secret').value;
+  var secret = eid('secret').value;
   var newName = eid('name').value;
 
   if (firstRefresh) {
-    lastsecret = k;
+    lastsecret = secret;
     lastname = newName;
     firstRefresh = false;
   }
 
-  k = k.replace(/[^ABCDEFGHIJKLMNOPQRSTUVWXYZ234567]/gi, '');
-  e=Math.floor(new Date().getTime()/1000);
-  var t=Math.floor(e/30);
-  var rem = 30 - (e - (t*30));
-
   rowidx = editingRow();
 
-  if (k != lastsecret) {
-    val(rowidx, k);
+  if (secret != lastsecret) {
+    val(rowidx, secret);
   }
 
   if (newName != lastname) {
@@ -209,13 +206,19 @@ function refresh() {
     lastname = newName;
   }
 
+  e=Math.floor(new Date().getTime()/1000);
+
   // If TOTP code has changed (either because of user edits, or
   // because of elapsed time), update the user interface.
-  if (k != lastsecret || e != lastepochseconds ||
+  if (secret != lastsecret || e != lastepochseconds ||
       t != lasttimestamp) {
-    lastsecret=k;
+    lastsecret=secret;
     lastepochseconds=e;
     lasttimestamp=t;
+
+    k = secret.replace(/[^ABCDEFGHIJKLMNOPQRSTUVWXYZ234567]/gi, '');
+    var t=Math.floor(e/30);
+    var rem = 30 - (e - (t*30));
 
     var code=totp(k,t);
 
