@@ -42,10 +42,13 @@ function onload() {
     // Firefox fix
     origin = "file://";
   }
-  var plainURL = origin + window.location.pathname;
-  eid("url").innerHTML = plainURL;
-  eid("secret").select();
+  eid("name").select();
   setInterval(refresh, 100)
+}
+
+function enableDisableDelete() {
+  var button = eid('deleteRowButton');
+  button.disabled =  (passCount() < 2);
 }
 
 function initializeKeys() {
@@ -59,11 +62,16 @@ function initializeKeys() {
   }
 
   var rowidx = editingRow();
+  if (rowidx > (passCount-1)) {
+    rowidx = 0;
+    editingRow(0);
+  }
   eid('secret').value = val(rowidx);
   eid('name').value = name(rowidx);
 
   var show = showEditor();
   showHideEditing(show);
+  enableDisableDelete();
 
   if (show) {
     var id = vi('radio', rowidx);
@@ -74,6 +82,84 @@ function initializeKeys() {
       radio.checked = false;
     }
   }
+}
+
+function selectRow(rowidx, updateEditor) {
+  var id = vi('radio', rowidx);
+  var radio = eid(id);
+  radio.checked = true;
+  if (updateEditor) {
+    updateSelectedPassword(radio);
+  }
+}
+
+function slideRow(from, to) {
+  eid(vi('name', from)).id = vi('name', to);
+  eid(vi('password', from)).id = vi('password', to);
+  radio = eid(vi('radio', from));
+  radio.id = vi('radio', to);
+  radio.value = to;
+  name(to, name(from));
+  val(to, val(from));
+}
+
+function slideRows(rowidx, delta) {
+  var count = passCount();
+  if (delta > 0) {
+    for (var i=count; i>rowidx; --i) {
+      slideRow(i-1, i);
+    }
+  } else {
+    for (var i=rowidx; i<count-1; i++) {
+      slideRow(i+1, i);
+    }
+    name(count-1, null);
+    val(count-1, null);
+  }
+}
+
+var deletedRowName = null;
+var deletedRowSecret = null;
+
+function addRow() {
+  var rowidx = editingRow() + 1;
+  slideRows(rowidx, 1);
+
+  if (deletedRowName) {
+    newName = deletedRowName;
+    newSecret = deletedRowSecret;
+    deletedRowName = null;
+    deletedRowSecret = null;
+  } else {
+    newName = 'unnamed';
+    newSecret =  randomPassword();
+  }
+  name(rowidx, newName);
+  val(rowidx, newSecret);
+
+  createRow(rowidx);
+  passCount(passCount() + 1);
+  selectRow(rowidx, true);
+  enableDisableDelete();
+  eid("name").select();
+}
+
+function deleteRow() {
+  var count = passCount();
+  if (count <= 1) {
+    return;
+  }
+  var rowidx = editingRow();
+  deletedRowName = name(rowidx);
+  deletedRowSecret = val(rowidx);
+  slideRows(rowidx, -1);
+  passCount(count-1);
+  editingRow(rowidx-1);
+  selectRow(rowidx-1, true);
+  enableDisableDelete();
+  var table = eid('table');
+  var idx = getFirstRowIndex();
+  table.deleteRow(idx + rowidx);  
 }
 
 var base32Letters = "abcdefghijklmnopqrstuvwxyz234567";
@@ -88,11 +174,36 @@ function randomPassword() {
   for (var i=0; i<16; i++) {
     pass = pass + randomBase32Letter();
   }
+  return pass;
 }
 
 var firstRowIndex = -1;
 
-function getRow(rowIndex) {
+function createRow(idx) {
+  var newName = name(idx, newName);
+  var newSecret = val(idx, newSecret);
+
+  var row = table.insertRow(getFirstRowIndex() + idx);
+  var labelCell = row.insertCell(0);
+  labelCell.style = 'text-align: right;'
+  var id = vi('name', idx);
+  labelCell.innerHTML = "<span id='" + id + "'>" + newName + "</span>:&nbsp;";
+  var passCell = row.insertCell(1);
+  passCell.class = 'shrink';
+  id = vi('password', idx);
+  passCell.innerHTML = "<span id='" + id +
+    "' style='font-weight: bold;'></span>"
+  var nbspCell = row.insertCell(2);
+  nbspCell.innerHTML = "&nbsp;";
+  var radioCell = row.insertCell(3);
+  id = vi('radio', idx);
+  radioCell.innerHTML = "<input type='radio' id='" + id +
+    "' name='passwords' value='" + idx +
+    "' onChange='updateSelectedPassword()' />";
+  return row;
+}
+
+function getFirstRowIndex() {
   var table = eid('table');
   var rows = table.rows;
   var cnt = rows.length;
@@ -106,37 +217,29 @@ function getRow(rowIndex) {
         break;
       }
     }
- 
-    var startIndex = firstRowIndex;
-    var idx = startIndex;
-    var passwordCnt = cnt - startIndex;
-    if (rowIndex < passwordCnt) {
-      return rows[idx];
-    }
-    for (var i=passwordCnt; i<=rowIndex; i++) {
-      row = table.insertRow(idx);
-      var labelCell = row.insertCell(0);
-      labelCell.style = 'text-align: right;'
-      name(i, 'unnamed')
-      var id = vi('name', i);
-      labelCell.innerHtml = "<span id='" + id + "'>" + id + "</span>:&nbsp;";
-      var passCell = row.insertCell(1);
-      passCell.class = 'shrink';
-      id = vi('password', i);
-      val = randomPassword();
-      val(i, val);
-      passCell.innerHTML = "<span id='" + id +
-        "' style='font-weight: bold;'>" + val + "</span>"
-      var nbspCell = row.insertCell(2);
-      nbspCell.innertHTML = "&nbsp;";
-      var radioCell = row.insertCell(3);
-      id = vi('radio', i);
-      radioCell.innerHTML = "<input type='radio' id='" + id +
-        "' name='passwords' value='" + i +
-        "' onChange='updateSelectedPassword()' />";
-    }
-    return row;
   }
+
+  return firstRowIndex;
+}
+
+function getRow(rowIndex) {
+  var table = eid('table');
+  var rows = table.rows;
+  var cnt = rows.length;
+  var row;
+
+  var startIndex = getFirstRowIndex();
+  var idx = startIndex;
+  var passwordCnt = cnt - startIndex;
+  if (rowIndex < passwordCnt) {
+    return rows[idx];
+  }
+  idx += passwordCnt;
+  for (var i=passwordCnt; i<=rowIndex; i++) {
+    row = createRow(idx - startIndex);
+    idx++;
+  }
+  return row;
 }  
 
 function onFocus(element) {
@@ -216,22 +319,24 @@ function refresh() {
     lastepochseconds=e;
     lasttimestamp=t;
 
-    k = secret.replace(/[^ABCDEFGHIJKLMNOPQRSTUVWXYZ234567]/gi, '');
     var rem = 30 - (e - (t*30));
-
-    var code=totp(k,t);
-
-    // Show the current time in seconds and in 30s increments since midnight
-    // Jan 1st, 1970. Optionally, let the user override this timestamp.
     eid('epoch').innerHTML=rem;
 
-    // Show the current TOTP code.
-    code = "" + code;
-    for (var i=0; i<6-code.length; i++) {
-      code = "0" + code;
+    // Show the TOTP codes.
+    for (rowidx=0; rowidx<passCount(); rowidx++) {
+      secret = val(rowidx);
+      k = secret.replace(/[^ABCDEFGHIJKLMNOPQRSTUVWXYZ234567]/gi, '');
+
+      var code=totp(k,t);
+
+      code = "" + code;
+      for (var i=0; i<6-code.length; i++) {
+        code = "0" + code;
+      }
+      code = code.substring(0, 3) + "&nbsp;" + code.substring(3, 6);
+      id = vi('password', rowidx);
+      eid(id).innerHTML = code;
     }
-    code = code.substring(0, 3) + " " + code.substring(3, 6);
-    eid('password[0]').innerHTML = code;
   }
 }
 
@@ -272,16 +377,18 @@ function updateShowSecret() {
   }
 }
 
-function updateSelectedPassword() {
-  var radio = selectedPasswordRadio();
+function updateSelectedPassword(radio) {
+  if (!radio) {
+    radio = selectedPasswordRadio();
+  }
   if (radio) {
     showHideEditing(true);
     eid("show-secret").checked = true;
     showEditor(true);
-    var rowidx = radio.value;
+    var rowidx = toNumber(radio.value);
     eid('secret').value = val(rowidx);
     eid('name').value = name(rowidx);
-
+    editingRow(rowidx);
   }
 }
 
@@ -304,7 +411,12 @@ function vi(name, i) {
 }
 
 function put(key, value) {
-  localStorage[tv(key)] = value;
+  if (value === null) {
+    localStorage.removeItem(tv(key));
+    return undefined;
+  } else {
+    localStorage[tv(key)] = value;
+  }
   return value;
 }
 
@@ -335,9 +447,12 @@ function getBoolean(key, value, defaultValue) {
 }
 
 function editingRow(newval) {
-  var row = get("editingRow", newval);
-  if (!row) row = 0;
-  return row;
+  if (!(newval === undefined)) {
+    newval = toNumber(newval);
+  }
+  var rowidx = get("editingRow", newval);
+  if (!rowidx) rowidx = 0;
+  return toNumber(rowidx);
 }
 
 function showEditor(newval) {
@@ -369,17 +484,29 @@ function passCount(newval) {
   <center>
     <form id='form'>
       <table id='table' style='border: 2px solid gray; padding: 2px;'>
-        <tr id='secret-row' style='display: none;'>
-          <td style='text-align: right;'>Secret&nbsp;Key (<a href='https://en.wikipedia.org/wiki/Base32'>BASE32</a>):</td>
-          <td colspan='2'><input size="20" type="text" id="secret" value="InTheQRCodeBelow"
-                     onfocus='onFocus(this)' /></td>
-        </tr>
         <tr id='name-row' style='display: none;'>
           <td style='text-align: right;'>Name:</td>
-          <td colspan='2'><input size="20" type="text" id="name" value="Password"
-                     onfocus='onFocus(this)' /></td>
-          <td><input type='checkbox' id='show-secret' checked='checked'
-                     onChange='updateShowSecret()' /></td>
+          <td colspan='2'>
+            <input size="20" type="text" id="name" value="Password"
+                   onfocus='onFocus(this)' />
+          </td>
+          <td>
+            <input type='checkbox' id='show-secret' checked='checked'
+                   onChange='updateShowSecret()' />
+          </td>
+        </tr>
+        <tr id='secret-row' style='display: none;'>
+          <td style='text-align: right;'>Secret&nbsp;Key (<a href='https://en.wikipedia.org/wiki/Base32'>BASE32</a>):</td>
+          <td colspan='2'>
+            <input size="20" type="text" id="secret" value="InTheQRCodeBelow"
+                   onfocus='onFocus(this)' />
+          </td>
+          <td>
+            <input type='button' value='+' onclick='addRow()' />
+            <input type='button' id='deleteRowButton' value='-'
+                   disabled='disabled'
+                   onclick='deleteRow()' />
+          </td>
         </tr>
         <tr>
           <td style='text-align: right;'>Time remaining:&nbsp;</td>
@@ -402,24 +529,21 @@ function passCount(newval) {
   </center>
 
  <div id='help' style='display: none;'>
-  <p>This page generates a Time-based One-Time Password (TOTP), as
+  <p>This page generates a set of Time-based One-Time Passwords (TOTP), as
     done by the Google Authenticator app, but in your web browser. The
-    password changes every 30 seconds, hence the count-down in the
+    passwords changes every 30 seconds, hence the count-down in the
     "Time Remaining" field.</p>
 
   <p>Though it will work if loaded directly from the internet, it is
     best to "File/Save Page As..." in your browser, and use it
     directly from the saved file there, via "File/Open..." in your
-    browser. You can also right-click, if you want, on the QR code in
-    the paragraph below and "Save Image As...", but that isn't
-    necessary to make your saved version work, only to make it
-    pretty.</p>
+    browser.</p>
 
-  <p>The "Secret Key" is generated by a web site that requires
+  <p>The "Secret Key" is usually generated by a web site that requires
     two-factor authentication. It should be 16 characters long,
     <img src='qr-code-100x100.png' style='float: right; border: 2px solid blue;' alt='QR Code' width='100' height='100'/>
     consisting of the letters "a" to "z" and the digits "2" to "7",
-    which represents a 512-bit number (this page doesn't enforce that;
+    which represents a 80-bit number (this page doesn't enforce that;
     it simply decodes the string as BASE32, generating however big a
     number it represents). The key, and an associated label, are often
     presented visually as a QR code, which Authenticator apps can
@@ -427,22 +551,28 @@ function passCount(newval) {
 
   <p>Paste that secret key into the field near the top of the screen
     labelled "Secret Key", where it initially says "InTheQRCodeBelow"
-    (and which is actually encoded in the QR code image).
+    (and which is actually encoded in the QR code image). Give it
+    whatever "Name" you'd like.
 
   <p>If you forget a site's secret key, you won't be able to login any
     more, until you convince an administrator there to let you create
-    a new one. Google Authenticator remembers it for you, but if you
-    use this web page, you'll have to remember it yourself.</p>
+    a new one.</p>
 
-  <p>One way to remember a secret key is to edit this file on your
-    computer, and set the value of the "secretKey" variable near the
-    top of the file. If you do so, that key will be used, and the input
-    line above for the Secret Key will be hidden.</p>
+  <p>The page starts with a single secret key, but you can add more by
+  clicking the "+" button to the right of the "Secret Key" field. You
+  can select which key you're editing by clicking the radio button to
+  the right of that field. You can delete a field by clicking the "-"
+  button. To hide the editing fields and this help text, uncheck the
+  check box to the right of the "Name" field. To show them again,
+  click on any radio button."</p>
 
-  <p>Another way to remember the secret is to encode it in a bookmark
-    to this page. For example, <a href='?secret=UseThisAsASecret'>
-    <span id='url'>totp.html</span>?secret=UseThisAsASecret</a> (but
-    use your secret instead of "UseThisAsASecret").</p>
+  <p>If you delete a row by mistake, just click the "+" button and its
+  name and secret key will be restored. Otherwise, a new row's name
+  will be "Unnamed" and its secret will be randomly generated.</p>
+
+  <p>The values are stored in "local storage" of your web
+  browser. They will persist there. I'm working on a way to transfer
+  "name/secret key" pairs between browsers.</p>
 
   <p>This page requires JavaScript, but it executes completely inside
     the web browser on your computer. No communication is done over the
