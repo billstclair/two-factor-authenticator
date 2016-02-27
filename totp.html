@@ -270,11 +270,11 @@ function createRow(idx) {
 
   var row = table.insertRow(getFirstRowIndex() + idx);
   var labelCell = row.insertCell(0);
-  labelCell.style = 'text-align: right;'
+  labelCell.style['text-align'] = 'right';
   var id = vi('name', idx);
   labelCell.innerHTML = "<span id='" + id + "'>" + newName + "</span>:&nbsp;";
   var passCell = row.insertCell(1);
-  passCell.style = "class='shrink;'";
+  passCell.className = 'shrink';
   id = vi('password', idx);
   passCell.innerHTML = "<span id='" + id +
     "' style='font-weight: bold;'></span>"
