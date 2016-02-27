@@ -236,6 +236,12 @@ function restoreState() {
   }
 }
 
+function eraseState() {
+  if (window.confirm("Erase all saved state from this browser?\n\nThis cannot be undone (unless you have a 'restore' string.")) {
+    restoreFromArray([["Password", "InTheQRCodeBelow"]]);
+  }
+}
+
 function enableDisablePaste() {
   var button = eid('restoreButton');
   button.disabled =  false;
@@ -599,6 +605,8 @@ function passCount(newval) {
           <td style='text-align: right;'>
             <input type='button' value='save'
                    onclick='saveState()' />
+            <input type='button' value='erase'
+                   onclick='eraseState()' />
             <input type='button' value='restore' id='restoreButton'
                    disabled='disabled'
                    onclick='restoreState()' />
@@ -683,6 +691,9 @@ function passCount(newval) {
   <p>To restore saved state, paste the string you copied in the
   preceding paragraph into the text box to the right of the "restore"
   button, and click the "restore" button.</p>
+
+  <p>To erase your saved state, so that nobody who uses the current
+  browser can recover your secret keys, click the "erase" button.</p>
 
   <p>This page requires JavaScript, but it executes completely inside
     the web browser on your computer. No communication is done over the
