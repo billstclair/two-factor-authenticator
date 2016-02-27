@@ -24,7 +24,7 @@
   <title>Two-Factor Authenticator</title>
   <style media="screen" type="text/css">
     table td.shrink {
-      text-align: right;
+      text-align: left;
       white-space:nowrap;
       width: 3em;
     }
@@ -162,6 +162,85 @@ function deleteRow() {
   table.deleteRow(idx + rowidx);  
 }
 
+function saveToString() {
+  var res = [];
+  var count = passCount();
+  for (var i=0; i<count; i++) {
+    var passName = name(i);
+    var pass = val(i);
+    res.push([passName, pass]);
+  }
+  return JSON.stringify(res);
+}
+
+function validateRestoreString(text) {
+  try {
+    var a = JSON.parse(text);
+    if (!Array.isArray(a)) return false;
+    for (var i=0; i<a.length; i++) {
+      var e = a[i];
+      if (!Array.isArray(e)) return false;
+      if (e.length != 2) return false;
+      if (typeof(e[0]) != 'string' || typeof(e[1]) != 'string') {
+        return false;
+      }
+      return a;
+    }
+  } catch (e) {
+    return false;
+  }
+}
+
+function restoreFromString(text) {
+  var a = validateRestoreString(text);
+  if (!a) {
+    return false;
+  }
+  restoreFromArray(a);
+  return true;
+}
+
+function restoreFromArray(a) {
+  var len = a.length;
+  for (var i=0; i<len; i++) {
+    var e = a[i];
+    name(i, e[0]);
+    val(i, e[1]);
+  }
+  var table = eid('table');
+  var idx = getFirstRowIndex();
+  for (var i=len; i<passCount(); i++) {
+    name(i, null);
+    val(i, null);
+    table.deleteRow(idx + len);
+  }
+  passCount(len);
+  editingRow(0);
+  lastepochseconds = 0;
+  initializeKeys();
+}
+
+function saveState() {
+  var text = saveToString();
+  eid('restoreText').value = text;
+  window.alert("Copy the text from the box to the right of the 'restore' button, and save it for restoring into another browser.");
+  eid('restoreText').select();
+}
+
+function restoreState() {
+  if (window.confirm("Restore state from saved string?\n\nThis will permanently lose existing state, replacing it with that from the text box to the right of the 'restore' button.")) {
+    var text = eid('restoreText').value;
+    if (!restoreFromString(text)) {
+      alert("Invalid restore string.")
+    }
+  }
+}
+
+function enableDisablePaste() {
+  var button = eid('restoreButton');
+  button.disabled =  false;
+}
+
 var base32Letters = "abcdefghijklmnopqrstuvwxyz234567";
 
 function randomBase32Letter() {
@@ -189,7 +268,7 @@ function createRow(idx) {
   var id = vi('name', idx);
   labelCell.innerHTML = "<span id='" + id + "'>" + newName + "</span>:&nbsp;";
   var passCell = row.insertCell(1);
-  passCell.class = 'shrink';
+  passCell.style = "class='shrink;'";
   id = vi('password', idx);
   passCell.innerHTML = "<span id='" + id +
     "' style='font-weight: bold;'></span>"
@@ -286,6 +365,8 @@ var lasttimestamp;
 var firstRefresh = true;
 
 function refresh() {
+  enableDisablePaste();
+
   // Compute current TOTP code
   var secret = eid('secret').value;
   var newName = eid('name').value;
@@ -355,8 +436,9 @@ function selectedPasswordRadio() {
 function showHideEditing(show) {
   var display = show ? "" : "none";
   eid('help').style.display = display;
-  eid('secret-row').style.display = display;
   eid('name-row').style.display = display;
+  eid('secret-row').style.display = display;
+  eid('copypaste-row').style.display = display;
 }
 
 function updateShowSecret() {
@@ -513,6 +595,19 @@ function passCount(newval) {
                    onclick='deleteRow()' />
           </td>
         </tr>
+        <tr id='copypaste-row' style='display: none;'>
+          <td style='text-align: right;'>
+            <input type='button' value='save'
+                   onclick='saveState()' />
+            <input type='button' value='restore' id='restoreButton'
+                   disabled='disabled'
+                   onclick='restoreState()' />
+          </td>
+          <td>
+            <input size="20" type='text' id='restoreText' />
+          </td>
+          <td>&nbsp;</td>
+        </tr>
         <tr>
           <td style='text-align: right;'>Time remaining:&nbsp;</td>
           <td class='shrink'><span id="epoch"></span></td>
@@ -578,6 +673,16 @@ function passCount(newval) {
   <p>The values are stored in "local storage" of your web
   browser. They will persist there. I'm working on a way to transfer
   "name/secret key" pairs between browsers.</p>
+
+  <p>To save the names and secret keys stored in your browser's local
+  storage, click the "save" button. That will encode the state and put
+  it in the text box to the right of the "restore" button. Copy that
+  and save it in a file for later pasting into this page running in
+  another browser.</p>
+
+  <p>To restore saved state, paste the string you copied in the
+  preceding paragraph into the text box to the right of the "restore"
+  button, and click the "restore" button.</p>
 
   <p>This page requires JavaScript, but it executes completely inside
     the web browser on your computer. No communication is done over the
