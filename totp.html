@@ -21,8 +21,22 @@
   -- limitations under the License.
 -->
 <head>
-  <title>Two-Factor Authenticator</title>
-  <style media="screen" type="text/css">
+    <meta charset="UTF-8">
+    <title>Two-Factor Authenticator</title>
+    <meta name='wot-verification' content='5cb29ec02479d36e6dbc'/> 
+    <meta property="og:locale" content="en_US"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="Two-Factor Authenticator"/>
+    <meta property="og:description" content="Google's Authenticator app in a web page"
+    <meta property="og:url" content="https://billstclair.com/two-factor-authenticator/"/>
+    <meta property="og:site_name" content="Two-Factor Authenticator"/>
+    <meta property="og:image" content="./icon-180.png">
+    <meta property="og:image:width" content="180"/>
+    <meta property="og:image:height" content="180"/>
+    <link href='/images/icon-180.png' rel='apple-touch-icon' sizes='180x180'>
+    <script type='text/javascript' src='worker.js'></script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <style media="screen" type="text/css">
     table td.shrink {
       text-align: left;
       white-space:nowrap;
@@ -449,8 +463,6 @@ function showHideEditing(show) {
 
 function updateShowSecret() {
   var show = eid('show-secret').checked;
-  showEditor(show);
-
   showHideEditing(show);
 
   var radio = selectedPasswordRadio();
@@ -547,6 +559,7 @@ function showEditor(newval) {
   return getBoolean("showEditor", newval, true);
 }
 
+
 function passCount(newval) {
   var v = "passCount";
   if (newval === undefined) {
@@ -563,6 +576,13 @@ function passCount(newval) {
   } else {
     return put(v, toNumber(newval))
   }
+}
+
+function toggleShowEditor() {
+  var newval = !showEditor();
+  console.log("toggleShowEditor: ", newval);
+  showHideEditing(newval);
+  put("showEditor", newval);
 }
 
   --></script>
@@ -634,6 +654,11 @@ function passCount(newval) {
         </tr>
       </table>
     </form>
+    <p>
+      <form>
+        <button onclick='toggleShowEditor()'>Show/Hide help</button>
+      </form>
+    </p>
   </center>
 
  <div id='help' style='display: none;'>
